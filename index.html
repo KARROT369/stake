@@ -1,17 +1,723 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Karrot Shrine</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stake - Gamified Staking Platform</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #fff;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 0;
+      border-bottom: 2px solid #f39c12;
+      margin-bottom: 30px;
+    }
+    .logo { display: flex; align-items: center; gap: 15px; }
+    .logo-icon { font-size: 40px; }
+    .logo-text h1 { 
+      font-size: 36px; 
+      background: linear-gradient(90deg, #f39c12, #e74c3c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .logo-text p { color: #aaa; font-size: 14px; }
+    
+    /* Wallet Section */
+    .wallet-section { display: flex; align-items: center; gap: 15px; }
+    .wallet-btn {
+      background: linear-gradient(90deg, #f39c12, #e74c3c);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .wallet-btn:hover { transform: scale(1.05); }
+    .wallet-info { display: none; align-items: center; gap: 10px; }
+    .wallet-address { 
+      background: rgba(243,156,18,0.2); 
+      padding: 8px 16px; 
+      border-radius: 20px; 
+      font-family: monospace; 
+    }
+    
+    /* Main Grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+    
+    /* Cards */
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(243,156,18,0.3);
+      border-radius: 20px;
+      padding: 25px;
+      backdrop-filter: blur(10px);
+    }
+    .card h2 {
+      color: #f39c12;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    /* XP/Level Display */
+    .level-display {
+      text-align: center;
+      padding: 30px;
+      background: linear-gradient(135deg, rgba(243,156,18,0.1), rgba(231,76,60,0.1));
+      border-radius: 15px;
+      margin-bottom: 20px;
+    }
+    .level-badge {
+      display: inline-block;
+      background: linear-gradient(90deg, #f39c12, #e74c3c);
+      padding: 10px 30px;
+      border-radius: 25px;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    .xp-bar-container {
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      height: 20px;
+      margin-top: 15px;
+      overflow: hidden;
+    }
+    .xp-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #f39c12, #e74c3c);
+      border-radius: 10px;
+      transition: width 0.5s;
+    }
+    .xp-text {
+      color: #888;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    
+    /* Mode Selector */
+    .mode-selector {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .mode-option {
+      background: rgba(0,0,0,0.3);
+      border: 2px solid transparent;
+      border-radius: 15px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+    .mode-option:hover { border-color: #f39c12; }
+    .mode-option.selected {
+      border-color: #f39c12;
+      background: rgba(243,156,18,0.1);
+    }
+    .mode-icon { font-size: 32px; margin-bottom: 10px; }
+    .mode-name { font-weight: bold; margin-bottom: 5px; }
+    .mode-apy { 
+      font-size: 14px; 
+      color: #f39c12;
+    }
+    .mode-desc {
+      font-size: 12px;
+      color: #888;
+      margin-top: 5px;
+    }
+    
+    /* Staking Input */
+    .stake-input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .stake-input {
+      flex: 1;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid #f39c12;
+      padding: 15px;
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+    }
+    .stake-input:focus { outline: none; border-color: #e74c3c; }
+    .stake-btn {
+      background: linear-gradient(90deg, #f39c12, #e74c3c);
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .stake-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(243,156,18,0.4); }
+    .stake-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .stat-box {
+      background: rgba(0,0,0,0.2);
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .stat-value { font-size: 24px; font-weight: bold; color: #e74c3c; }
+    .stat-label { font-size: 12px; color: #888; margin-top: 5px; }
+    
+    /* Achievements */
+    .achievements-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .achievement {
+      background: rgba(0,0,0,0.3);
+      border: 2px solid transparent;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+      opacity: 0.5;
+    }
+    .achievement.unlocked {
+      opacity: 1;
+      border-color: #f39c12;
+      background: rgba(243,156,18,0.1);
+    }
+    .achievement-icon { font-size: 24px; margin-bottom: 5px; }
+    .achievement-name { font-size: 12px; color: #888; }
+    
+    /* Leaderboard */
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border-left: 3px solid transparent;
+    }
+    .leaderboard-item:nth-child(1) { border-left-color: gold; }
+    .leaderboard-item:nth-child(2) { border-left-color: silver; }
+    .leaderboard-item:nth-child(3) { border-left-color: #cd7f32; }
+    .rank { font-weight: bold; color: #f39c12; width: 40px; }
+    .address { font-family: monospace; color: #aaa; }
+    .score { color: #e74c3c; font-weight: bold; }
+    
+    /* Claim Button */
+    .claim-btn {
+      width: 100%;
+      padding: 20px;
+      background: linear-gradient(90deg, #27ae60, #2ecc71);
+      border: none;
+      border-radius: 15px;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+    .claim-btn:hover { transform: scale(1.02); box-shadow: 0 5px 20px rgba(39,174,96,0.4); }
+    .claim-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Notifications */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      z-index: 1000;
+      transform: translateX(400px);
+      transition: transform 0.3s;
+    }
+    .notification.show { transform: translateX(0); }
+    .notification.success { background: #27ae60; }
+    .notification.error { background: #e74c3c; }
+    .notification.info { background: #3498db; }
+    
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 0.5s;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(243,156,18,0.3);
+      border-top-color: #f39c12;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { margin-top: 20px; color: #f39c12; font-size: 18px; }
+  </style>
 </head>
-<body class="bg-black text-white flex flex-col items-center justify-center min-h-screen">
-  <h1 class="text-5xl text-orange-400">🥕 Karrot Shrine</h1>
-  <button id="karrotVoiceBtn" class="mt-6 px-6 py-2 bg-purple-600 rounded">Check Total Supply</button>
+<body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Initializing Gamified Staking...</div>
+  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
-  <script src="karrot-logic.js"></script>
-  <script src="voice-pack.js"></script>
+  <!-- Notification -->
+  <div id="notification" class="notification"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🎮</div>
+        <div class="logo-text">
+          <h1>Stake</h1>
+          <p>Gamified Staking Platform</p>
+        </div>
+      </div>
+      <div class="wallet-section">
+        <div class="wallet-info" id="walletInfo">
+          <span class="wallet-address" id="walletAddress">-</span>
+        </div>
+        <button class="wallet-btn" id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Left Column -->
+      <div>
+        <!-- Level/XP Card -->
+        <div class="card">
+          <h2>🏆 Your Progress</h2>
+          
+          <div class="level-display">
+            <div class="level-badge">Level <span id="userLevel">1</span></div>
+            <div class="xp-bar-container">
+              <div class="xp-bar" id="xpBar" style="width: 0%"></div>
+            </div>
+            <div class="xp-text">
+              <span id="currentXP">0</span> / <span id="nextLevelXP">1000</span> XP
+            </div>
+          </div>
+          
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-value" id="totalStaked">0</div>
+              <div class="stat-label">Total Staked</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="rewardMultiplier">1.0x</div>
+              <div class="stat-label">Multiplier</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="totalEarned">0</div>
+              <div class="stat-label">Total Earned</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Staking Modes -->
+        <div class="card" style="margin-top: 20px;">
+          <h2>🎰 Select Mode</h2>
+          
+          <div class="mode-selector" id="modeSelector">
+            <div class="mode-option selected" data-mode="standard" data-apy="36.5">
+              <div class="mode-icon">💎</div>
+              <div class="mode-name">Standard</div>
+              <div class="mode-apy">36.5% APY</div>
+              <div class="mode-desc">Flexible withdrawal</div>
+            </div>
+            
+            <div class="mode-option" data-mode="locked" data-apy="73.0">
+              <div class="mode-icon">🔒</div>
+              <div class="mode-name">Locked</div>
+              <div class="mode-apy">73.0% APY</div>
+              <div class="mode-desc">90-day lock</div>
+            </div>
+            
+            <div class="mode-option" data-mode="nft" data-apy="109.5">
+              <div class="mode-icon">🎨</div>
+              <div class="mode-name">NFT-Boosted</div>
+              <div class="mode-apy">109.5% APY</div>
+              <div class="mode-desc">Requires NFT</div>
+            </div>
+            
+            <div class="mode-option" data-mode="entropy" data-apy="variable">
+              <div class="mode-icon">🌀</div>
+              <div class="mode-name">Entropy</div>
+              <div class="mode-apy">Variable</div>
+              <div class="mode-desc">High volatility</div>
+            </div>
+          </div>
+          
+          <div class="stake-input-group">
+            <input type="number" class="stake-input" id="stakeInput" placeholder="Amount to stake" min="0" step="0.01">
+            <button class="stake-btn" id="stakeBtn" onclick="stakeTokens()" disabled>Stake</button>
+          </div>
+          
+          <p style="color: #888; font-size: 14px; margin-top: 10px;">
+            Balance: <span id="karrotBalance">0</span> KARROT
+          </p>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div>
+        <!-- Achievements -->
+        <div class="card">
+          <h2>🏅 Achievements</h2>
+          
+          <div class="achievements-grid" id="achievementsGrid">
+            <div class="achievement unlocked" id="ach-first-stake">
+              <div class="achievement-icon">🌱</div>
+              <div class="achievement-name">First Stake</div>
+            </div>
+            
+            <div class="achievement" id="ach-streak-7">
+              <div class="achievement-icon">🔥</div>
+              <div class="achievement-name">7-Day Streak</div>
+            </div>
+            
+            <div class="achievement" id="ach-streak-30">
+              <div class="achievement-icon">⚡</div>
+              <div class="achievement-name">30-Day Streak</div>
+            </div>
+            
+            <div class="achievement" id="ach-whale">
+              <div class="achievement-icon">🐋</div>
+              <div class="achievement-name">Whale</div>
+            </div>
+            
+            <div class="achievement" id="ach-level-10">
+              <div class="achievement-icon">⭐</div>
+              <div class="achievement-name">Level 10</div>
+            </div>
+            
+            <div class="achievement" id="ach-level-50">
+              <div class="achievement-icon">👑</div>
+              <div class="achievement-name">Level 50</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rewards Card -->
+        <div class="card" style="margin-top: 20px;">
+          <h2>💰 Rewards</h2>
+          
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-value" id="pendingRewards">0</div>
+              <div class="stat-label">Pending RH</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="claimableAmount">0</div>
+              <div class="stat-label">Claimable</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="dailyEarnings">0</div>
+              <div class="stat-label">Daily</div>
+            </div>
+          </div>
+          
+          <button class="claim-btn" id="claimBtn" onclick="claimRewards()" disabled>Claim Rewards</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="card">
+      <h2>🏆 Leaderboard</h2>
+      
+      <div id="leaderboardList">
+        <div class="leaderboard-item">
+          <span class="rank">#1</span>
+          <span class="address">0x7a23...f4e2</span>
+          <span class="score">Lvl 47 | 2.8M XP</span>
+        </div>
+        
+        <div class="leaderboard-item">
+          <span class="rank">#2</span>
+          <span class="address">0x9b45...a1c3</span>
+          <span class="score">Lvl 42 | 1.9M XP</span>
+        </div>
+        
+        <div class="leaderboard-item">
+          <span class="rank">#3</span>
+          <span class="address">0x3c78...d9e5</span>
+          <span class="score">Lvl 38 | 1.6M XP</span>
+        </div>
+        
+        <div class="leaderboard-item">
+          <span class="rank">#4</span>
+          <span class="address">0x1f89...b2a7</span>
+          <span class="score">Lvl 31 | 987K XP</span>
+        </div>
+        
+        <div class="leaderboard-item">
+          <span class="rank">#5</span>
+          <span class="address">0x5d12...e8f1</span>
+          <span class="score">Lvl 28 | 756K XP</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Contract ABIs (simplified - replace with actual ABIs)
+    const GAMIFIED_STAKING_ABI = [
+      {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint8","name":"mode","type":"uint8"}],"name":"stake","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"unstake","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[],"name":"claimReward","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getStakedAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getPendingReward","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getLevel","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getXP","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getRewardMultiplier","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+    ];
+
+    const KARROT_TOKEN_ABI = [
+      {"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+      {"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+    ];
+
+    // Contract addresses (replace with actual deployed addresses)
+    const CONTRACTS = {
+      gamifiedStaking: '0x0000000000000000000000000000000000000000', // Replace with actual address
+      karrotToken: '0x6910076Eee8F4b6ea251B7cCa1052dd744Fc04DA'
+    };
+
+    // State
+    let web3;
+    let userAddress = null;
+    let gamifiedStaking;
+    let karrotToken;
+    let selectedMode = 'standard';
+    let userLevel = 1;
+    let userXP = 0;
+
+    // XP required for each level
+    const XP_PER_LEVEL = [0, 1000, 2500, 5000, 10000, 20000, 35000, 55000, 80000, 110000, 150000];
+
+    // Initialize
+    window.addEventListener('load', () => {
+      setupModeSelector();
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+      }, 1500);
+    });
+
+    // Setup mode selector
+    function setupModeSelector() {
+      const options = document.querySelectorAll('.mode-option');
+      options.forEach(option => {
+        option.addEventListener('click', () => {
+          options.forEach(o => o.classList.remove('selected'));
+          option.classList.add('selected');
+          selectedMode = option.dataset.mode;
+        });
+      });
+    }
+
+    // Connect Wallet
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        showNotification('Please install MetaMask', 'error');
+        return;
+      }
+
+      try {
+        web3 = new Web3(window.ethereum);
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+
+        // Initialize contracts
+        gamifiedStaking = new web3.eth.Contract(GAMIFIED_STAKING_ABI, CONTRACTS.gamifiedStaking);
+        karrotToken = new web3.eth.Contract(KARROT_TOKEN_ABI, CONTRACTS.karrotToken);
+
+        // Update UI
+        document.getElementById('connectBtn').style.display = 'none';
+        document.getElementById('walletInfo').style.display = 'flex';
+        document.getElementById('walletAddress').textContent = userAddress.slice(0, 6) + '...' + userAddress.slice(-4);
+        document.getElementById('stakeBtn').disabled = false;
+        document.getElementById('claimBtn').disabled = false;
+
+        // Load user data
+        await loadUserData();
+        
+        showNotification('Wallet connected!', 'success');
+      } catch (error) {
+        console.error('Connection error:', error);
+        showNotification('Failed to connect wallet', 'error');
+      }
+    }
+
+    // Load user data
+    async function loadUserData() {
+      if (!userAddress) return;
+      
+      try {
+        // Get KARROT balance
+        const balance = await karrotToken.methods.balanceOf(userAddress).call();
+        document.getElementById('karrotBalance').textContent = (balance / 1e18).toFixed(2);
+
+        // Get level and XP (replace with actual contract calls)
+        // const level = await gamifiedStaking.methods.getLevel(userAddress).call();
+        // const xp = await gamifiedStaking.methods.getXP(userAddress).call();
+        
+        updateLevelDisplay();
+        
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    }
+
+    // Update level display
+    function updateLevelDisplay() {
+      document.getElementById('userLevel').textContent = userLevel;
+      document.getElementById('currentXP').textContent = userXP;
+      
+      const nextLevelXP = XP_PER_LEVEL[userLevel] || XP_PER_LEVEL[XP_PER_LEVEL.length - 1];
+      document.getElementById('nextLevelXP').textContent = nextLevelXP;
+      
+      const prevLevelXP = XP_PER_LEVEL[userLevel - 1] || 0;
+      const progress = ((userXP - prevLevelXP) / (nextLevelXP - prevLevelXP)) * 100;
+      document.getElementById('xpBar').style.width = Math.min(progress, 100) + '%';
+      
+      // Update multiplier based on level
+      const multiplier = 1 + (userLevel * 0.05);
+      document.getElementById('rewardMultiplier').textContent = multiplier.toFixed(1) + 'x';
+    }
+
+    // Stake tokens
+    async function stakeTokens() {
+      if (!userAddress) {
+        showNotification('Please connect wallet first', 'error');
+        return;
+      }
+
+      const amount = document.getElementById('stakeInput').value;
+      if (!amount || amount <= 0) {
+        showNotification('Please enter a valid amount', 'error');
+        return;
+      }
+
+      try {
+        const amountWei = web3.utils.toWei(amount, 'ether');
+        const modeIndex = ['standard', 'locked', 'nft', 'entropy'].indexOf(selectedMode);
+        
+        // Approve tokens
+        showNotification('Approving tokens...', 'info');
+        await karrotToken.methods.approve(CONTRACTS.gamifiedStaking, amountWei).send({ from: userAddress });
+        
+        // Stake tokens
+        showNotification('Staking tokens...', 'info');
+        await gamifiedStaking.methods.stake(amountWei, modeIndex).send({ from: userAddress });
+        
+        // Add XP for staking
+        userXP += 100;
+        updateLevelDisplay();
+        
+        showNotification('Successfully staked ' + amount + ' KARROT!', 'success');
+        document.getElementById('stakeInput').value = '';
+        await loadUserData();
+      } catch (error) {
+        console.error('Staking error:', error);
+        showNotification('Staking failed: ' + error.message, 'error');
+      }
+    }
+
+    // Claim rewards
+    async function claimRewards() {
+      if (!userAddress) {
+        showNotification('Please connect wallet first', 'error');
+        return;
+      }
+
+      try {
+        showNotification('Claiming rewards...', 'info');
+        await gamifiedStaking.methods.claimReward().send({ from: userAddress });
+        
+        // Add XP for claiming
+        userXP += 500;
+        updateLevelDisplay();
+        
+        showNotification('Rewards claimed successfully!', 'success');
+        await loadUserData();
+      } catch (error) {
+        console.error('Claim error:', error);
+        showNotification('Claim failed: ' + error.message, 'error');
+      }
+    }
+
+    // Show notification
+    function showNotification(message, type) {
+      const notif = document.getElementById('notification');
+      notif.textContent = message;
+      notif.className = 'notification ' + type;
+      notif.classList.add('show');
+      
+      setTimeout(() => {
+        notif.classList.remove('show');
+      }, 3000);
+    }
+
+    // Listen for account changes
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts) => {
+        if (accounts.length === 0) {
+          userAddress = null;
+          document.getElementById('connectBtn').style.display = 'block';
+          document.getElementById('walletInfo').style.display = 'none';
+          document.getElementById('stakeBtn').disabled = true;
+          document.getElementById('claimBtn').disabled = true;
+        } else {
+          userAddress = accounts[0];
+          loadUserData();
+        }
+      });
+    }
+  </script>
 </body>
 </html>
